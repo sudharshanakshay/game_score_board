@@ -55,6 +55,9 @@ class _HomeScreen extends State<HomeScreen> {
       backgroundColor: const Color(0xFFE9D8A6), // Wheat
       body: Consumer<SessionProvider>(
         builder: (context, value, child) {
+          if (value.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (value.sessionId != null) {
             return const GameScorebaordScreen();
           }

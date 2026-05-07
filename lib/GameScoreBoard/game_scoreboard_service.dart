@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/main.dart';
+import 'package:provider/provider.dart';
 
 class PlayerDetail {
   String id;
@@ -18,9 +20,7 @@ class GameScoreboardService extends ChangeNotifier {
 
   SocketService socketService = SocketService();
 
-
   GameScoreboardService(this.sessionProvider) {
-    
     _onSessionChanged();
     listenToScoreUpdates();
   }
@@ -46,7 +46,6 @@ class GameScoreboardService extends ChangeNotifier {
 
           if (scoreBaord != null) {
             for (var playerDetail in scoreBaord) {
-             
               gameBoard.add(
                 PlayerDetail(
                   id: playerDetail['id'],
@@ -83,9 +82,7 @@ class GameScoreboardService extends ChangeNotifier {
   }
 
   Future<void> endGame() async {
-
     String hostId = await HostIdService.getHostId();
-
 
     if (sessionProvider.sessionId == null) {
     } else {
@@ -93,9 +90,7 @@ class GameScoreboardService extends ChangeNotifier {
         'end-session',
         {'sessionId': sessionProvider.sessionId, 'hostId': hostId},
         ack: (response) {
-          if (kDebugMode) {
-            print(response);
-          }
+          navigatorKey.currentContext!.read<SessionProvider>().setNull();
           notifyListeners();
         },
       );

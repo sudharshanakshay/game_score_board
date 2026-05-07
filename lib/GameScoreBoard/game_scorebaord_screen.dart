@@ -32,10 +32,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     });
   }
 
-  // int get seconds {
-  //   return DateTime.now().difference(startTime).inSeconds;
-  // }
-
   @override
   void dispose() {
     timer?.cancel();
@@ -180,6 +176,7 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   Widget qrDialog(BuildContext context) {
     final sessionId = context.read<SessionProvider>().sessionId ?? "unknown";
+    // final sessionId = context.select<SessionProvider, String>().sessionId ?? "unknown";
 
     return AlertDialog(
       backgroundColor: const Color(0xFFFFF8E7),
@@ -307,10 +304,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     GameScoreboardService gameScoreboardService,
   ) {
     bool isEndConfirmed = false;
-
-    // var sessionId = navigatorKey.currentContext!
-    //     .watch<SessionProvider>()
-    //     .sessionId;
 
     showDialog(
       context: context,
