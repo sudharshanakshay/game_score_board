@@ -22,6 +22,11 @@ class AddPlayerService extends ChangeNotifier {
     }
   }
 
+  void removePlayer(String name) {
+    playerNames.remove(name);
+    notifyListeners();
+  }
+
   String capitalize(String text) {
     text = text.trim();
     if (text.isEmpty) return text;

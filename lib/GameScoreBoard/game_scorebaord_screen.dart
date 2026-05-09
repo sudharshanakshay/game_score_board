@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:game_score_board/Constants/app_avatar.dart';
+import 'package:game_score_board/Constants/app_colors.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_screen.dart';
-import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_service.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -24,6 +25,23 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
   late DateTime startTime;
 
   SocketService socketService = SocketService();
+
+  final Map<String, int> updatedPlayerColors = {};
+
+  // int colorIndex = 0;
+
+  void markPlayerUpdated(String playerId) {
+    setState(() {
+      // updatedPlayerColors[playerId] = AppColors.lightColors[colorIndex];
+
+      if (updatedPlayerColors[playerId] == null) {
+        updatedPlayerColors[playerId] = 1;
+      } else {
+        updatedPlayerColors[playerId] =
+            (updatedPlayerColors[playerId]! + 1) % AppColors.lightColors.length;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -56,142 +74,130 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<UpdateScoreboardService>(
-      builder:
-          (BuildContext context, UpdateScoreboardService value, Widget? child) {
-            return Scaffold(
-              backgroundColor: const Color(0xFFE9D8A6),
-              body: SafeArea(
-                child: Consumer<GameScoreboardService>(
-                  builder: (context, service, child) {
-                    final players = [...service.gameBoard];
-                    players.sort((a, b) => a.score.compareTo(b.score));
+    return Scaffold(
+      backgroundColor: const Color(0xFFE9D8A6),
+      body: SafeArea(
+        child: Consumer<GameScoreboardService>(
+          builder: (context, service, child) {
+            final players = [...service.gameBoard];
+            players.sort((a, b) => a.score.compareTo(b.score));
 
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        16,
-                        12,
-                        16,
-                        16,
-                      ), // ✅ better top spacing
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                16,
+              ), // ✅ better top spacing
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// 🎮 HEADER (structured)
+                  /// 🎮 HEADER
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      /// Row 1: Title + Timer
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          /// 🎮 HEADER (structured)
-                          /// 🎮 HEADER
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          const Text(
+                            "🎲 Scoreboard",
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF001219),
+                            ),
+                          ),
+
+                          Row(
                             children: [
-                              /// Row 1: Title + Timer
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    "🎲 Scoreboard",
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF001219),
-                                    ),
-                                  ),
-
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.qr_code_2),
-                                        color: const Color(0xFF0A9396),
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (_) => qrDialog(context),
-                                          );
-                                        },
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF0A9396),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          formatTime(seconds),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                              IconButton(
+                                icon: const Icon(Icons.qr_code_2),
+                                color: const Color(0xFF0A9396),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => qrDialog(context),
+                                  );
+                                },
                               ),
-
-                              const SizedBox(height: 10),
-
-                              /// Row 2: Players + Actions
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  /// 👥 Players count
-                                  Text(
-                                    "${players.length} Players",
-                                    style: const TextStyle(
-                                      color: Color(0xFF005F73),
-                                    ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0A9396),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  formatTime(seconds),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
                                   ),
-
-                                  /// ⚡ Actions cluster
-                                  TextButton(
-                                    onPressed: () {
-                                      onEndSessionPressed(context, service);
-                                    },
-                                    child: const Text(
-                                      "End Game",
-                                      style: TextStyle(
-                                        color: Color(0xFFBB3E03),
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
+                        ],
+                      ),
 
-                          const SizedBox(height: 12),
+                      const SizedBox(height: 10),
 
-                          /// 🏆 LIST
-                          Expanded(
-                            child: ListView.builder(
-                              physics:
-                                  const BouncingScrollPhysics(), // feels better
-                              itemCount: players.length,
-                              itemBuilder: (context, index) {
-                                final p = players[index];
-                                return playerCard(
-                                  id: p.id,
-                                  name: p.name,
-                                  score: p.score,
-                                  isLeader: index == 0,
-                                );
-                              },
+                      /// Row 2: Players + Actions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          /// 👥 Players count
+                          Text(
+                            "${players.length} Players",
+                            style: const TextStyle(color: Color(0xFF005F73)),
+                          ),
+
+                          /// ⚡ Actions cluster
+                          TextButton(
+                            onPressed: () {
+                              onEndSessionPressed(context, service);
+                            },
+                            child: const Text(
+                              "End Game",
+                              style: TextStyle(
+                                color: Color(0xFFBB3E03),
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
-                ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  /// 🏆 LIST
+                  Expanded(
+                    child: ListView.builder(
+                      physics: const BouncingScrollPhysics(), // feels better
+                      itemCount: players.length,
+                      itemBuilder: (context, index) {
+                        final p = players[index];
+                        return playerCard(
+                          id: p.id,
+                          name: p.name,
+                          score: p.score,
+                          isLeader: index == 0,
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             );
           },
+        ),
+      ),
     );
   }
 
@@ -252,13 +258,44 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     required int score,
     required bool isLeader,
   }) {
+    final avatar =
+        AppAvatar.avatars[name.hashCode.abs() % AppAvatar.avatars.length];
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                UpdateScoreboardScreen(id: id, name: name, score: score),
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(
+        //     builder: (_) =>
+        //         UpdateScoreboardScreen(id: id, name: name, score: score),
+        //   ),
+        // );
+
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          enableDrag: true,
+          isDismissible: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.6,
+            maxChildSize: 0.95,
+            expand: false,
+            builder: (BuildContext context, ScrollController scrollController) {
+              return ClipRRect(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                child: UpdateScoreboardScreen(
+                  id: id,
+                  name: name,
+                  score: score,
+                  scrollController: scrollController,
+
+                  onScoreUpdated: () {
+                    markPlayerUpdated(id);
+                  },
+                ),
+              );
+            },
           ),
         );
       },
@@ -267,8 +304,8 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isLeader
-              ? const Color(0xFFEE9B00) // Golden Orange
+          color: updatedPlayerColors[id] != null
+              ? AppColors.lightColors[updatedPlayerColors[id]!]
               : const Color(0xFF94D2BD), // Card color
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -289,9 +326,27 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
               ),
 
             /// 🎭 Avatar
-            CircleAvatar(
-              backgroundColor: const Color(0xFF0A9396),
-              child: Text(name[0].toUpperCase()),
+            // CircleAvatar(
+            //   backgroundColor: const Color(0xFF0A9396),
+            //   // child: Text(name[0].toUpperCase()),
+            //   child: Text(avatar),
+            // ),
+            Container(
+              height: 45,
+              width: 45,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.22),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  avatar,
+                  style: TextStyle(
+                    fontSize: 42,
+                    color: AppColors.playerNameTextColor,
+                  ),
+                ),
+              ),
             ),
 
             const SizedBox(width: 12),

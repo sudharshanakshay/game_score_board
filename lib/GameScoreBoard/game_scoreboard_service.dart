@@ -9,6 +9,7 @@ class PlayerDetail {
   String id;
   String name;
   int score;
+  int updateCount = 0;
 
   PlayerDetail({required this.id, required this.name, required this.score});
 }
