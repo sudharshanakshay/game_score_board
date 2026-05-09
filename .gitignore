@@ -45,4 +45,4 @@ app.*.map.json
 /android/app/release
 
 # Configuration
-/lib/Socket/config.dart
+lib/Socket/config.dart
