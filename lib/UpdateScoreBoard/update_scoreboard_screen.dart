@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:game_score_board/Constants/app_text_styles.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_service.dart';
-import 'package:game_score_board/main.dart';
 import 'package:provider/provider.dart';
 
 class UpdateScoreboardScreen extends StatefulWidget {
@@ -27,8 +26,14 @@ class _UpdateScoreboardScreen extends State<UpdateScoreboardScreen> {
 
   @override
   void initState() {
-    super.initState();
+    Future.microtask(() {
+      if (!mounted) return;
+      context.read<UpdateScoreboardService>().init();
+    });
+
     currentScore = widget.score;
+
+    super.initState();
   }
 
   int get changeValue => input.isEmpty ? 0 : int.parse(input);
@@ -88,15 +93,16 @@ class _UpdateScoreboardScreen extends State<UpdateScoreboardScreen> {
         padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      onPressed: () {
+      onPressed: () async {
         if (text == "AC") {
           onButtonPressed("AC");
         } else {
           onButtonPressed("=");
-          navigatorKey.currentContext!.read<UpdateScoreboardService>().update(
+          await context.read<UpdateScoreboardService>().update(
             playerId: widget.id,
             newPlayerScore: currentScore,
           );
+          if (!mounted) return;
           Navigator.pop(context); // 👈 return after apply
         }
       },

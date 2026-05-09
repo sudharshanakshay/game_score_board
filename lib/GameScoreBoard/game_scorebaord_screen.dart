@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_screen.dart';
+import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_service.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -55,130 +56,142 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFE9D8A6),
-      body: SafeArea(
-        child: Consumer<GameScoreboardService>(
-          builder: (context, service, child) {
-            final players = [...service.gameBoard];
-            players.sort((a, b) => a.score.compareTo(b.score));
+    return Consumer<UpdateScoreboardService>(
+      builder:
+          (BuildContext context, UpdateScoreboardService value, Widget? child) {
+            return Scaffold(
+              backgroundColor: const Color(0xFFE9D8A6),
+              body: SafeArea(
+                child: Consumer<GameScoreboardService>(
+                  builder: (context, service, child) {
+                    final players = [...service.gameBoard];
+                    players.sort((a, b) => a.score.compareTo(b.score));
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(
-                16,
-                12,
-                16,
-                16,
-              ), // ✅ better top spacing
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// 🎮 HEADER (structured)
-                  /// 🎮 HEADER
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      /// Row 1: Title + Timer
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        16,
+                        12,
+                        16,
+                        16,
+                      ), // ✅ better top spacing
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "🎲 Scoreboard",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF001219),
-                            ),
-                          ),
-
-                          Row(
+                          /// 🎮 HEADER (structured)
+                          /// 🎮 HEADER
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              IconButton(
-                                icon: const Icon(Icons.qr_code_2),
-                                color: const Color(0xFF0A9396),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => qrDialog(context),
-                                  );
-                                },
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0A9396),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  formatTime(seconds),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                              /// Row 1: Title + Timer
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    "🎲 Scoreboard",
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF001219),
+                                    ),
                                   ),
-                                ),
+
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.qr_code_2),
+                                        color: const Color(0xFF0A9396),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => qrDialog(context),
+                                          );
+                                        },
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0A9396),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          formatTime(seconds),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              /// Row 2: Players + Actions
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  /// 👥 Players count
+                                  Text(
+                                    "${players.length} Players",
+                                    style: const TextStyle(
+                                      color: Color(0xFF005F73),
+                                    ),
+                                  ),
+
+                                  /// ⚡ Actions cluster
+                                  TextButton(
+                                    onPressed: () {
+                                      onEndSessionPressed(context, service);
+                                    },
+                                    child: const Text(
+                                      "End Game",
+                                      style: TextStyle(
+                                        color: Color(0xFFBB3E03),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
 
-                      const SizedBox(height: 10),
+                          const SizedBox(height: 12),
 
-                      /// Row 2: Players + Actions
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          /// 👥 Players count
-                          Text(
-                            "${players.length} Players",
-                            style: const TextStyle(color: Color(0xFF005F73)),
-                          ),
-
-                          /// ⚡ Actions cluster
-                          TextButton(
-                            onPressed: () {
-                              onEndSessionPressed(context, service);
-                            },
-                            child: const Text(
-                              "End Game",
-                              style: TextStyle(
-                                color: Color(0xFFBB3E03),
-                                fontWeight: FontWeight.bold,
-                              ),
+                          /// 🏆 LIST
+                          Expanded(
+                            child: ListView.builder(
+                              physics:
+                                  const BouncingScrollPhysics(), // feels better
+                              itemCount: players.length,
+                              itemBuilder: (context, index) {
+                                final p = players[index];
+                                return playerCard(
+                                  id: p.id,
+                                  name: p.name,
+                                  score: p.score,
+                                  isLeader: index == 0,
+                                );
+                              },
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  /// 🏆 LIST
-                  Expanded(
-                    child: ListView.builder(
-                      physics: const BouncingScrollPhysics(), // feels better
-                      itemCount: players.length,
-                      itemBuilder: (context, index) {
-                        final p = players[index];
-                        return playerCard(
-                          id: p.id,
-                          name: p.name,
-                          score: p.score,
-                          isLeader: index == 0,
-                        );
-                      },
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ),
             );
           },
-        ),
-      ),
     );
   }
 

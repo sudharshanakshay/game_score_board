@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/main.dart';
 import 'package:provider/provider.dart';
 
@@ -30,10 +30,9 @@ class AddPlayerService extends ChangeNotifier {
   }
 
   Future<void> startGame() async {
-    SocketService socketService = SocketService();
     String hostId = await HostIdService.getHostId();
 
-    socketService.socket.emitWithAck(
+    SocketService().socket.emitWithAck(
       'create-session',
       {'hostId': hostId, 'playerNames': playerNames},
       ack: (response) {

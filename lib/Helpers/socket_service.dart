@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:game_score_board/Socket/config.dart';
+import 'package:game_score_board/Helpers/config.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class SocketService {
   SocketService._internal();
   static final SocketService _instance = SocketService._internal();
+
+  final List<VoidCallback> _reconnectListerners = [];
 
   factory SocketService() {
     return _instance;
@@ -14,8 +16,6 @@ class SocketService {
 
   bool _isConnected = false;
   bool _isConnecting = false;
-
-  VoidCallback? onReconnect;
 
   Future<void> init() async {
     if (_isConnected || _isConnecting) return;
@@ -36,7 +36,7 @@ class SocketService {
         print('Connected: ${socket.id}');
       }
 
-      onReconnect?.call();
+      _notifyReconnect();
     });
 
     socket.onDisconnect((_) {
@@ -51,7 +51,21 @@ class SocketService {
         print('Socket reconnected');
       }
 
-      onReconnect?.call();
+      _notifyReconnect();
     });
+  }
+
+  void addReconnectListerners(VoidCallback cb) {
+    _reconnectListerners.add(cb);
+  }
+
+  void removeReconnectListerners(VoidCallback cb) {
+    _reconnectListerners.remove(cb);
+  }
+
+  void _notifyReconnect() {
+    for (final cb in List.from(_reconnectListerners)) {
+      cb();
+    }
   }
 }

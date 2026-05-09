@@ -1,13 +1,26 @@
 import 'package:flutter/foundation.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
+import 'package:game_score_board/main.dart';
+import 'package:provider/provider.dart';
 
 class UpdateScoreboardService extends ChangeNotifier {
-  SocketService socketService = SocketService();
-  SessionProvider sessionProvider;
+  String? sessionId;
 
-  UpdateScoreboardService(this.sessionProvider);
+  late VoidCallback _reconnectHadler;
+
+  void init() {
+    sessionId = navigatorKey.currentContext!.read<SessionProvider>().sessionId;
+
+    _reconnectHadler = () {
+      sessionId = navigatorKey.currentContext!
+          .read<SessionProvider>()
+          .sessionId;
+    };
+
+    SocketService().addReconnectListerners(_reconnectHadler);
+  }
 
   Future<void> update({
     required String playerId,
@@ -15,11 +28,11 @@ class UpdateScoreboardService extends ChangeNotifier {
   }) async {
     String hostId = await HostIdService.getHostId();
 
-    if (sessionProvider.sessionId != null) {
-      socketService.socket.emitWithAck(
+    if (sessionId != null) {
+      SocketService().socket.emitWithAck(
         'update-score',
         {
-          'sessionId': sessionProvider.sessionId,
+          'sessionId': sessionId,
           'hostId': hostId,
           'playerId': playerId,
           'playerScore': newPlayerScore,

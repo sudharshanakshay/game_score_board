@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/main.dart';
 import 'package:provider/provider.dart';
 
@@ -16,13 +16,11 @@ class PlayerDetail {
 class GameScoreboardService extends ChangeNotifier {
   List<PlayerDetail> gameBoard = [];
 
-  // final SessionProvider sessionProvider;
-
-  SocketService socketService = SocketService();
+  late VoidCallback _reconnectHandler;
 
   @override
   void dispose() {
-    socketService.socket.off('score-update');
+    SocketService().socket.off('score-update');
     super.dispose();
   }
 
@@ -30,14 +28,13 @@ class GameScoreboardService extends ChangeNotifier {
     joinSession();
     listenToScoreUpdates();
 
-    socketService.onReconnect = () {
-      if (kDebugMode) {
-        print("rejoin session after reconnect");
-      }
+    _reconnectHandler = () {
       joinSession();
 
       listenToScoreUpdates();
     };
+
+    SocketService().addReconnectListerners(_reconnectHandler);
   }
 
   void joinSession() {
@@ -52,7 +49,7 @@ class GameScoreboardService extends ChangeNotifier {
       if (kDebugMode) {
         print("Session updated: $sessionId");
       }
-      socketService.socket.emitWithAck(
+      SocketService().socket.emitWithAck(
         'join-session',
         {'sessionId': sessionId},
         ack: (response) {
@@ -78,9 +75,9 @@ class GameScoreboardService extends ChangeNotifier {
   }
 
   void listenToScoreUpdates() {
-    socketService.socket.off('score-update');
+    SocketService().socket.off('score-update');
 
-    socketService.socket.on('score-update', (response) {
+    SocketService().socket.on('score-update', (response) {
       List? scoreBoard = response;
 
       if (scoreBoard == null) return;
@@ -105,7 +102,7 @@ class GameScoreboardService extends ChangeNotifier {
 
     if (sessionId != null) {
       try {
-        socketService.socket.emitWithAck(
+        SocketService().socket.emitWithAck(
           'end-session',
           {'sessionId': sessionId, 'hostId': hostId},
           ack: (response) {

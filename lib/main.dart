@@ -4,7 +4,7 @@ import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/HomePage/home_screen.dart';
 import 'package:game_score_board/ScanToConnect/scan_to_connect_service.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_service.dart';
 import 'package:provider/provider.dart';
 
@@ -18,11 +18,12 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => SessionProvider()),
         ChangeNotifierProvider(create: (_) => AddPlayerService()),
-        ChangeNotifierProxyProvider<SessionProvider, UpdateScoreboardService>(
-          create: (_) => UpdateScoreboardService(SessionProvider()),
-          update: (_, sessionProvider, previous) =>
-              UpdateScoreboardService(sessionProvider),
-        ),
+        ChangeNotifierProvider(create: (_) => UpdateScoreboardService()),
+        // ChangeNotifierProxyProvider<SessionProvider, UpdateScoreboardService>(
+        //   create: (_) => UpdateScoreboardService(SessionProvider()),
+        //   update: (_, sessionProvider, previous) =>
+        //       UpdateScoreboardService(sessionProvider),
+        // ),
         ChangeNotifierProvider(create: (_) => GameScoreboardService()),
         ChangeNotifierProvider(create: (_) => ScanToConnectService()),
       ],

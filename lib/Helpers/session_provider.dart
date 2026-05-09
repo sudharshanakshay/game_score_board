@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
-import 'package:game_score_board/Socket/socket_service.dart';
+import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/main.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +12,8 @@ class SessionProvider with ChangeNotifier {
 
   SocketService socketService = SocketService();
 
+  late VoidCallback _reconnectHandler;
+
   @override
   void dispose() {
     socketService.socket.off('session-ended');
@@ -22,10 +24,12 @@ class SessionProvider with ChangeNotifier {
     fetchLastSession();
     listenForSessionEnd();
 
-    socketService.onReconnect = () {
+    _reconnectHandler = () {
       fetchLastSession();
       listenForSessionEnd();
     };
+
+    SocketService().addReconnectListerners(_reconnectHandler);
   }
 
   SessionProvider sessionProvider() {
