@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:game_score_board/AddNewPlayer/add_player_screen.dart';
 import 'package:game_score_board/GameScoreBoard/game_scorebaord_screen.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
+import 'package:game_score_board/HomePage/Widgets/splash_screen_widget.dart';
 import 'package:game_score_board/ScanToConnect/scan_to_connect_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -56,10 +57,10 @@ class _HomeScreen extends State<HomeScreen> {
       body: Consumer<SessionProvider>(
         builder: (context, value, child) {
           if (value.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return SplashScreenWidget();
           }
           if (value.sessionId != null) {
-            return const GameScorebaordScreen();
+            return GameScorebaordScreen();
           }
 
           return Padding(

@@ -12,16 +12,25 @@ class SessionProvider with ChangeNotifier {
 
   SocketService socketService = SocketService();
 
+  @override
+  void dispose() {
+    socketService.socket.off('session-ended');
+    super.dispose();
+  }
+
   SessionProvider() {
     fetchLastSession();
     listenForSessionEnd();
+
+    socketService.onReconnect = () {
+      fetchLastSession();
+      listenForSessionEnd();
+    };
   }
 
   SessionProvider sessionProvider() {
     return navigatorKey.currentContext!.read<SessionProvider>();
   }
-
-  // void
 
   void setNull() {
     _sessionId = null;
@@ -34,6 +43,7 @@ class SessionProvider with ChangeNotifier {
   }
 
   Future<void> fetchLastSession() async {
+    if (_sessionId != null) return;
     loading = true;
     String hostId = await HostIdService.getHostId();
 
@@ -44,20 +54,27 @@ class SessionProvider with ChangeNotifier {
         ack: (response) {
           if (response["found"] == true) {
             _sessionId = response["sessionId"];
+            loading = false;
+            notifyListeners();
+          } else {
+            setNull();
+            loading = false;
+            notifyListeners();
           }
         },
       );
     } catch (err) {
       if (kDebugMode) {
         print(err);
+        loading = false;
+        notifyListeners();
       }
     }
-
-    loading = false;
-    notifyListeners();
   }
 
   Future<void> listenForSessionEnd() async {
+    socketService.socket.off('session-ended');
+
     socketService.socket.on('session-ended', (response) {
       if (response) {
         setNull();

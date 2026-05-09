@@ -16,54 +16,70 @@ class PlayerDetail {
 class GameScoreboardService extends ChangeNotifier {
   List<PlayerDetail> gameBoard = [];
 
-  final SessionProvider sessionProvider;
+  // final SessionProvider sessionProvider;
 
   SocketService socketService = SocketService();
 
-  GameScoreboardService(this.sessionProvider) {
-    _onSessionChanged();
-    listenToScoreUpdates();
+  @override
+  void dispose() {
+    socketService.socket.off('score-update');
+    super.dispose();
   }
 
-  void _onSessionChanged() {
-    if (sessionProvider.sessionId == null) {
+  void init() {
+    joinSession();
+    listenToScoreUpdates();
+
+    socketService.onReconnect = () {
+      if (kDebugMode) {
+        print("rejoin session after reconnect");
+      }
+      joinSession();
+
+      listenToScoreUpdates();
+    };
+  }
+
+  void joinSession() {
+    String? sessionId = navigatorKey.currentContext!
+        .read<SessionProvider>()
+        .sessionId;
+    if (sessionId == null) {
       if (kDebugMode) {
         print("Session refreshed / cleared");
       }
     } else {
       if (kDebugMode) {
-        print("Session updated: ${sessionProvider.sessionId}");
+        print("Session updated: $sessionId");
       }
       socketService.socket.emitWithAck(
         'join-session',
-        {'sessionId': sessionProvider.sessionId},
+        {'sessionId': sessionId},
         ack: (response) {
           if (kDebugMode) {
             print('Score updated: $response');
           }
 
-          List? scoreBaord = response['scoreBoard'];
+          List? scoreBoard = response['scoreBoard'];
 
-          if (scoreBaord != null) {
-            for (var playerDetail in scoreBaord) {
-              gameBoard.add(
-                PlayerDetail(
-                  id: playerDetail['id'],
-                  name: playerDetail['name'],
-                  score: playerDetail['score'],
-                ),
+          if (scoreBoard != null) {
+            gameBoard = scoreBoard.map((playerDetail) {
+              return PlayerDetail(
+                id: playerDetail['id'],
+                name: playerDetail['name'],
+                score: playerDetail['score'],
               );
-              notifyListeners();
-            }
+            }).toList();
+            notifyListeners();
           }
         },
       );
     }
-
-    notifyListeners(); // if YOUR service UI depends on it
   }
 
-  Future<void> listenToScoreUpdates() async {
+  void listenToScoreUpdates() {
+    socketService.socket.off('score-update');
+
     socketService.socket.on('score-update', (response) {
       List? scoreBoard = response;
 
@@ -82,18 +98,27 @@ class GameScoreboardService extends ChangeNotifier {
   }
 
   Future<void> endGame() async {
+    String? sessionId = navigatorKey.currentContext!
+        .read<SessionProvider>()
+        .sessionId;
     String hostId = await HostIdService.getHostId();
 
-    if (sessionProvider.sessionId == null) {
-    } else {
-      socketService.socket.emitWithAck(
-        'end-session',
-        {'sessionId': sessionProvider.sessionId, 'hostId': hostId},
-        ack: (response) {
-          navigatorKey.currentContext!.read<SessionProvider>().setNull();
-          notifyListeners();
-        },
-      );
+    if (sessionId != null) {
+      try {
+        socketService.socket.emitWithAck(
+          'end-session',
+          {'sessionId': sessionId, 'hostId': hostId},
+          ack: (response) {
+            navigatorKey.currentContext!.read<SessionProvider>().setNull();
+            gameBoard.clear();
+            notifyListeners();
+          },
+        );
+      } catch (err) {
+        if (kDebugMode) {
+          print(err);
+        }
+      }
     }
   }
 }

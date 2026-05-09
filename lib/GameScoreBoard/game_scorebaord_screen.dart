@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
+import 'package:game_score_board/Socket/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -21,10 +22,18 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   late DateTime startTime;
 
+  SocketService socketService = SocketService();
+
   @override
   void initState() {
     super.initState();
     startTime = DateTime.now();
+
+    Future.microtask(() {
+      if (!mounted) return;
+      context.read<GameScoreboardService>().init();
+    });
+
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
         seconds = DateTime.now().difference(startTime).inSeconds;
@@ -49,7 +58,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFE9D8A6),
       body: SafeArea(
-        // ✅ FIX 1
         child: Consumer<GameScoreboardService>(
           builder: (context, service, child) {
             final players = [...service.gameBoard];
@@ -176,7 +184,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   Widget qrDialog(BuildContext context) {
     final sessionId = context.read<SessionProvider>().sessionId ?? "unknown";
-    // final sessionId = context.select<SessionProvider, String>().sessionId ?? "unknown";
 
     return AlertDialog(
       backgroundColor: const Color(0xFFFFF8E7),
@@ -309,9 +316,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
       context: context,
       barrierDismissible: false,
       builder: (showDialogContext) {
-        // if (sessionId == null) {
-        //   Navigator.pop(showDialogContext);
-        // }
         return AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
           shape: RoundedRectangleBorder(

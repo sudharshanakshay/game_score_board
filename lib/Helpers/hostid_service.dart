@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,7 +13,9 @@ class HostIdService {
     String? id = await _storage.read(key: _key);
 
     if (Platform.isLinux) { 
-      print('hello');
+      if (kDebugMode) {
+        print(' ----- Platform is Linux -----');
+      }
     }
 
     if (id == null) {

@@ -3,14 +3,15 @@ import 'package:game_score_board/AddNewPlayer/add_player_service.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/HomePage/home_screen.dart';
+import 'package:game_score_board/ScanToConnect/scan_to_connect_service.dart';
 import 'package:game_score_board/Socket/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_service.dart';
 import 'package:provider/provider.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
-  SocketService().init();
+void main() async {
+  await SocketService().init();
 
   runApp(
     MultiProvider(
@@ -22,13 +23,8 @@ void main() {
           update: (_, sessionProvider, previous) =>
               UpdateScoreboardService(sessionProvider),
         ),
-        ChangeNotifierProxyProvider<SessionProvider, GameScoreboardService>(
-          create: (_) => GameScoreboardService(
-            SessionProvider(), // temporary initial value
-          ),
-          update: (_, sessionProvider, previous) =>
-              GameScoreboardService(sessionProvider),
-        ),
+        ChangeNotifierProvider(create: (_) => GameScoreboardService()),
+        ChangeNotifierProvider(create: (_) => ScanToConnectService()),
       ],
       child: MyApp(),
     ),
@@ -38,7 +34,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

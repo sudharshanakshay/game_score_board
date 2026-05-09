@@ -1,7 +1,3 @@
 class HomeService {
-  Future<void> createConnect() async {
-    try {
-      
-    } catch (err) {}
-  }
+  Future<void> createConnect() async {}
 }

@@ -11,8 +11,11 @@ class SocketService {
   }
 
   late IO.Socket socket;
+
   bool _isConnected = false;
   bool _isConnecting = false;
+
+  VoidCallback? onReconnect;
 
   Future<void> init() async {
     if (_isConnected || _isConnecting) return;
@@ -21,10 +24,7 @@ class SocketService {
 
     socket = IO.io(
       Config.uri,
-      IO.OptionBuilder()
-          .setTransports(['websocket'])
-          .disableAutoConnect()
-          .build(),
+      IO.OptionBuilder().setTransports(['websocket']).build(),
     );
 
     socket.connect();
@@ -35,6 +35,8 @@ class SocketService {
       if (kDebugMode) {
         print('Connected: ${socket.id}');
       }
+
+      onReconnect?.call();
     });
 
     socket.onDisconnect((_) {
@@ -44,11 +46,12 @@ class SocketService {
       }
     });
 
-    // listen for score updates
-    socket.on('score-update', (data) {
+    socket.onReconnect((_) {
       if (kDebugMode) {
-        print('Score updated: $data');
+        print('Socket reconnected');
       }
+
+      onReconnect?.call();
     });
   }
 }

@@ -29,11 +29,9 @@ class AddPlayerService extends ChangeNotifier {
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
-  Future<String> startGame() async {
+  Future<void> startGame() async {
     SocketService socketService = SocketService();
     String hostId = await HostIdService.getHostId();
-
-    final completer = Completer<String>();
 
     socketService.socket.emitWithAck(
       'create-session',
@@ -47,10 +45,12 @@ class AddPlayerService extends ChangeNotifier {
           response['sessionId'],
         );
 
-        completer.complete(response['sessionId']);
+        notifyListeners();
+
+        // completer.complete(response['sessionId']);
       },
     );
 
-    return completer.future;
+    // return completer.future;
   }
 }
