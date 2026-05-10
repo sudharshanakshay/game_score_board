@@ -27,6 +27,7 @@ class Constants {
 
   // Internal code
   static const String internalErrorSessionNull = "SESSION_NULL";
+  static const String internalErrorNotHost = "NOT_HOST";
 
   // Internal message values
   static const String errorInternalText = "Internal error";

@@ -8,6 +8,9 @@ import 'package:provider/provider.dart';
 class SessionProvider with ChangeNotifier {
   String? _sessionId;
   bool loading = false;
+  bool _joinAsHost = false;
+
+  bool get isJoinAsHost => _joinAsHost;
 
   String? get sessionId => _sessionId;
 
@@ -47,6 +50,12 @@ class SessionProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setSessionCreatedByHost(String id) {
+    _sessionId = id;
+    _joinAsHost = true;
+    notifyListeners();
+  }
+
   Future<void> fetchLastSession() async {
     if (_sessionId != null) return;
     loading = true;
@@ -63,8 +72,10 @@ class SessionProvider with ChangeNotifier {
             Map<String, String> data = Map.from(response[Constants.DATAKEY]);
             _sessionId = data[Constants.SESSIONIDKEY];
             loading = false;
+            _joinAsHost = true;
             notifyListeners();
           } else {
+            _joinAsHost = false;
             setNull();
             loading = false;
             notifyListeners();
