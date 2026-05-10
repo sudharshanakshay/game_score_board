@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:game_score_board/AddNewPlayer/add_player_service.dart';
 import 'package:game_score_board/Constants/app_avatar.dart';
 import 'package:game_score_board/Constants/app_text_styles.dart';
+import 'package:game_score_board/Helpers/constants.dart';
 import 'package:provider/provider.dart';
 
 class AddPlayerScreen extends StatefulWidget {
@@ -63,12 +64,38 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
     _rotateLoadingMessages();
 
     try {
-      await provider.startGame();
+      Map<String, dynamic> successMessage = await provider.startGame();
 
-      await Future.delayed(const Duration(milliseconds: 600));
+      if (successMessage[Constants.SUCCESSKEY]) {
+        if (!mounted) return;
+        Navigator.pop(context);
+      } else {
+        setState(() {
+          isStartingGame = false;
+        });
 
-      if (!mounted) return;
-      Navigator.pop(context);
+        final String errorMessage = successMessage[Constants.MESSAGEKEY];
+
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+            content: Text(errorMessage),
+            action: SnackBarAction(
+              label: "Retry",
+              textColor: Colors.white,
+              onPressed: () => _startGame(provider),
+            ),
+          ),
+        );
+
+        Future.delayed(const Duration(seconds: 2), () {
+          messenger.hideCurrentSnackBar();
+        });
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -98,12 +125,12 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
       children: [
         Scaffold(
           backgroundColor: const Color(0xFFE9D8A6),
+
           // appBar: AppBar(
           //   backgroundColor: const Color(0xFFEE9B00),
           //   elevation: 0,
           //   title: const Text("Setup Game"),
           // ),
-
           body: Consumer<AddPlayerService>(
             builder: (context, provider, child) {
               final isDisabled = provider.playerNames.isEmpty || isStartingGame;
@@ -116,9 +143,8 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                     child: Column(
                       children: [
-                        SizedBox(
-                          height: 30,
-                        ),
+                        SizedBox(height: 30),
+
                         /// PLAYER CARD
                         Container(
                           width: double.infinity,
@@ -184,12 +210,14 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                               CircleAvatar(
                                                 radius: 30,
                                                 backgroundColor: color,
-                                                child: Text(avatar,  
-                                                   style: const TextStyle(
+                                                child: Text(
+                                                  avatar,
+                                                  style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 45,
                                                     fontWeight: FontWeight.bold,
-                                                  ),),
+                                                  ),
+                                                ),
                                                 // child: Text(
                                                 //   name[0].toUpperCase(),
                                                 //   style: const TextStyle(
@@ -297,8 +325,9 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                               const Duration(milliseconds: 100),
                                               () {
                                                 if (!_scrollController
-                                                    .hasClients)
+                                                    .hasClients) {
                                                   return;
+                                                }
 
                                                 _scrollController.animateTo(
                                                   _scrollController

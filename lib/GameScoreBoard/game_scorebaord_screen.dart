@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:game_score_board/Constants/app_avatar.dart';
 import 'package:game_score_board/Constants/app_colors.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
+import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/UpdateScoreBoard/update_scoreboard_screen.dart';
@@ -26,7 +27,8 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
 
   SocketService socketService = SocketService();
 
-  final Map<String, int> updatedPlayerColors = {};
+  final Map<String, Map<String, dynamic>> updatedPlayerColors = {};
+  final Map<String, Timer> _resetTimers = {};
 
   // int colorIndex = 0;
 
@@ -35,11 +37,31 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
       // updatedPlayerColors[playerId] = AppColors.lightColors[colorIndex];
 
       if (updatedPlayerColors[playerId] == null) {
-        updatedPlayerColors[playerId] = 1;
+        updatedPlayerColors[playerId] = {};
+        updatedPlayerColors[playerId]![Constants.internalColorIndexKey] = 1;
+        updatedPlayerColors[playerId]![Constants.internalShowPreviousScoreKey] =
+            true;
       } else {
-        updatedPlayerColors[playerId] =
-            (updatedPlayerColors[playerId]! + 1) % AppColors.lightColors.length;
+        updatedPlayerColors[playerId]![Constants.internalColorIndexKey] =
+            (updatedPlayerColors[playerId]![Constants.internalColorIndexKey] +
+                1) %
+            AppColors.lightColors.length;
+        updatedPlayerColors[playerId]![Constants.internalShowPreviousScoreKey] =
+            true;
       }
+
+      _resetTimers[playerId]?.cancel();
+
+      // ⏱ start new 10s timer
+      _resetTimers[playerId] = Timer(const Duration(seconds: 10), () {
+        if (!mounted) return;
+
+        setState(() {
+          updatedPlayerColors[playerId]?[Constants
+                  .internalShowPreviousScoreKey] =
+              false;
+        });
+      });
     });
   }
 
@@ -63,6 +85,9 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    for (final t in _resetTimers.values) {
+      t.cancel();
+    }
     super.dispose();
   }
 
@@ -79,7 +104,7 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
       body: SafeArea(
         child: Consumer<GameScoreboardService>(
           builder: (context, service, child) {
-            final players = [...service.gameBoard];
+            final players = [...service.gameBoard.values];
             players.sort((a, b) => a.score.compareTo(b.score));
 
             return Padding(
@@ -188,6 +213,7 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
                           name: p.name,
                           score: p.score,
                           isLeader: index == 0,
+                          previousScore: p.previousScore,
                         );
                       },
                     ),
@@ -256,20 +282,20 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     required String id,
     required String name,
     required int score,
+    required int previousScore,
     required bool isLeader,
   }) {
     final avatar =
         AppAvatar.avatars[name.hashCode.abs() % AppAvatar.avatars.length];
-    return GestureDetector(
-      onTap: () {
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (_) =>
-        //         UpdateScoreboardScreen(id: id, name: name, score: score),
-        //   ),
-        // );
 
+    final playerState = updatedPlayerColors[id];
+
+    final colorIndex = playerState?[Constants.internalColorIndexKey];
+    final showPrevious =
+        playerState?[Constants.internalShowPreviousScoreKey] ?? false;
+
+    return InkWell(
+      onTap: () {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -300,12 +326,14 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
         );
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 300),
+
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
+
         decoration: BoxDecoration(
-          color: updatedPlayerColors[id] != null
-              ? AppColors.lightColors[updatedPlayerColors[id]!]
+          color: playerState != null
+              ? AppColors.lightColors[colorIndex]
               : const Color(0xFF94D2BD), // Card color
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
@@ -325,12 +353,6 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
                 child: Text("👑", style: TextStyle(fontSize: 22)),
               ),
 
-            /// 🎭 Avatar
-            // CircleAvatar(
-            //   backgroundColor: const Color(0xFF0A9396),
-            //   // child: Text(name[0].toUpperCase()),
-            //   child: Text(avatar),
-            // ),
             Container(
               height: 45,
               width: 45,
@@ -359,13 +381,19 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
               ),
             ),
 
+            _previousScoreWidget(previousScore, showPrevious),
+
             /// 🔢 Score
-            Text(
-              "$score",
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF001219),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: Text(
+                "$score",
+                key: ValueKey(score),
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF001219),
+                ),
               ),
             ),
           ],
@@ -374,58 +402,131 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     );
   }
 
-  bool onEndSessionPressed(
+  Widget _previousScoreWidget(int previousScore, bool show) {
+  if (!show) return const SizedBox();
+
+  return TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0.0, end: 1.0),
+    duration: const Duration(milliseconds: 250),
+    builder: (context, value, child) {
+      return Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(10 * (1 - value), 0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              "$previousScore →",
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFBB3E03),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+  Future<bool> onEndSessionPressed(
     BuildContext context,
     GameScoreboardService gameScoreboardService,
-  ) {
+  ) async {
     bool isEndConfirmed = false;
 
-    showDialog(
+    await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (showDialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: const [
-              Icon(Icons.warning_amber_rounded, color: Colors.red),
-              SizedBox(width: 10),
-              Text("End Game?", style: TextStyle(color: Colors.white)),
-            ],
-          ),
-          content: const Text(
-            "This will end the game session.\n\n"
-            "• Players will be disconnected\n"
-            "• This action cannot be undone",
-            style: TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(showDialogContext),
-              child: const Text("Cancel"),
-            ),
+        bool isLoading = false;
 
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+        return StatefulBuilder(
+          builder: (context, dialogSetState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF1E1E1E),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              onPressed: () {
-                gameScoreboardService.endGame();
 
-                isEndConfirmed = true;
+              title: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.red),
 
-                Navigator.pop(showDialogContext);
-              },
-              child: const Text("End Game"),
-            ),
-          ],
+                  const SizedBox(width: 10),
+
+                  Text(
+                    isLoading ? "Ending Game..." : "End Game?",
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+
+              content: isLoading
+                  ? const SizedBox(
+                      height: 60,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : const Text(
+                      "This will end the game session.\n\n"
+                      "• Players will be disconnected\n"
+                      "• This action cannot be undone",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+
+              actions: [
+                TextButton(
+                  onPressed: isLoading
+                      ? null
+                      : () => Navigator.pop(showDialogContext),
+                  child: const Text("Cancel"),
+                ),
+
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          dialogSetState(() {
+                            isLoading = true;
+                          });
+
+                          final successMessage = await gameScoreboardService
+                              .endGame();
+
+                          if (!mounted) return;
+
+                          dialogSetState(() {
+                            isLoading = false;
+                          });
+
+                          if (successMessage[Constants.SUCCESSKEY]) {
+                            isEndConfirmed = true;
+                          }
+
+                          if (showDialogContext.mounted) {
+                            Navigator.pop(showDialogContext);
+                          }
+                        },
+
+                  child: const Text("End Game"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+
     return isEndConfirmed;
   }
 }
