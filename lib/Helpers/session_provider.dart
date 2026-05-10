@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/main.dart';
@@ -56,8 +57,11 @@ class SessionProvider with ChangeNotifier {
         'fetch-session',
         {'hostId': hostId},
         ack: (response) {
-          if (response["found"] == true) {
-            _sessionId = response["sessionId"];
+          bool successStatus = response[Constants.SUCCESSKEY];
+
+          if (successStatus) {
+            Map<String, String> data = Map.from(response[Constants.DATAKEY]);
+            _sessionId = data[Constants.SESSIONIDKEY];
             loading = false;
             notifyListeners();
           } else {

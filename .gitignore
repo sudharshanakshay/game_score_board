@@ -46,3 +46,4 @@ app.*.map.json
 
 # Configuration
 lib/Socket/config.dart
+lib/Helpers/config.dart

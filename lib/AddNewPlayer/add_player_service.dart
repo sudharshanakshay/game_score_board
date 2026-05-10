@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
@@ -34,27 +35,56 @@ class AddPlayerService extends ChangeNotifier {
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
-  Future<void> startGame() async {
+  Future<Map<String, dynamic>> startGame() async {
     String hostId = await HostIdService.getHostId();
 
-    SocketService().socket.emitWithAck(
-      'create-session',
-      {'hostId': hostId, 'playerNames': playerNames},
-      ack: (response) {
-        if (kDebugMode) {
-          print('Session created: $response');
-        }
+    Completer<Map<String, dynamic>> completer = Completer();
 
-        navigatorKey.currentContext!.read<SessionProvider>().setSession(
-          response['sessionId'],
-        );
+    Map<String, dynamic> completerMsg;
 
-        notifyListeners();
+    try {
+      SocketService().socket.emitWithAck(
+        'create-session',
+        {'hostId': hostId, 'playerNames': playerNames},
+        ack: (response) {
+          bool successStatus = response[Constants.SUCCESSKEY];
 
-        // completer.complete(response['sessionId']);
-      },
-    );
+          if (successStatus) {
+            String sessionId =
+                response[Constants.DATAKEY][Constants.SESSIONIDKEY];
+            navigatorKey.currentContext!.read<SessionProvider>().setSession(
+              sessionId,
+            );
+            notifyListeners();
 
-    // return completer.future;
+            completerMsg = {Constants.SUCCESSKEY: successStatus};
+          } else {
+            if (kDebugMode) {
+              print(response[Constants.errorKey]);
+            }
+
+            completerMsg = {
+              Constants.SUCCESSKEY: successStatus,
+              Constants.MESSAGEKEY:
+                  response[Constants.errorKey][Constants.MESSAGEKEY],
+            };
+          }
+
+          completer.complete(completerMsg);
+        },
+      );
+    } catch (err) {
+      if (kDebugMode) {
+        print(err);
+      }
+
+      completerMsg = {
+        Constants.SUCCESSKEY: false,
+        Constants.MESSAGEKEY: Constants.errorInternalText,
+      };
+      completer.complete(completerMsg);
+    }
+
+    return completer.future;
   }
 }

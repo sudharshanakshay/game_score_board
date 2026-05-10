@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
@@ -8,14 +11,19 @@ import 'package:provider/provider.dart';
 class PlayerDetail {
   String id;
   String name;
+  int previousScore;
   int score;
-  int updateCount = 0;
 
-  PlayerDetail({required this.id, required this.name, required this.score});
+  PlayerDetail({
+    required this.id,
+    required this.name,
+    required this.score,
+    this.previousScore = 0,
+  });
 }
 
 class GameScoreboardService extends ChangeNotifier {
-  List<PlayerDetail> gameBoard = [];
+  Map<String, PlayerDetail> gameBoard = {};
 
   late VoidCallback _reconnectHandler;
 
@@ -38,44 +46,82 @@ class GameScoreboardService extends ChangeNotifier {
     SocketService().addReconnectListerners(_reconnectHandler);
   }
 
-  void joinSession() {
+  Future<Map<String, dynamic>> joinSession() async {
     String? sessionId = navigatorKey.currentContext!
         .read<SessionProvider>()
         .sessionId;
+
+    Completer<Map<String, dynamic>> completer = Completer();
+    Map<String, dynamic> completerMsg;
+
     if (sessionId == null) {
       if (kDebugMode) {
         print("Session refreshed / cleared");
       }
+
+      completerMsg = {
+        Constants.SUCCESSKEY: false,
+        Constants.MESSAGEKEY: Constants.errorInvalidSessionText,
+      };
     } else {
       if (kDebugMode) {
         print("Session updated: $sessionId");
       }
-      SocketService().socket.emitWithAck(
-        'join-session',
-        {'sessionId': sessionId},
-        ack: (response) {
-          if (kDebugMode) {
-            print('Score updated: $response');
-          }
+      try {
+        SocketService().socket.emitWithAck(
+          'join-session',
+          {'sessionId': sessionId},
+          ack: (response) {
+            bool successStatus = response[Constants.SUCCESSKEY];
 
-          List? scoreBoard = response['scoreBoard'];
+            if (successStatus) {
+              Map<String, dynamic> data = response[Constants.DATAKEY];
 
-          if (scoreBoard != null) {
-            gameBoard = scoreBoard.map((playerDetail) {
-              return PlayerDetail(
-                id: playerDetail['id'],
-                name: playerDetail['name'],
-                score: playerDetail['score'],
-              );
-            }).toList();
-            notifyListeners();
-          }
-        },
-      );
+              List scoreBoard = data[Constants.SCOREBOARDKEY];
+
+              if (scoreBoard.isNotEmpty) {
+                gameBoard = {
+                  for (var playerDetail in scoreBoard)
+                    playerDetail['id']: PlayerDetail(
+                      id: playerDetail['id'],
+                      name: playerDetail['name'],
+                      score: playerDetail['score'],
+                      previousScore: gameBoard[playerDetail['id']] == null
+                          ? 0
+                          : gameBoard[playerDetail['id']]!.score,
+                    ),
+                };
+                notifyListeners();
+              }
+
+              completerMsg = {Constants.SUCCESSKEY: successStatus};
+              completer.complete(completerMsg);
+            } else {
+              completerMsg = {
+                Constants.SUCCESSKEY: successStatus,
+                Constants.MESSAGEKEY:
+                    response[Constants.errorKey][Constants.codeKey],
+              };
+              completer.complete(completerMsg);
+            }
+          },
+        );
+      } catch (err) {
+        if (kDebugMode) {
+          print(err);
+        }
+
+        completerMsg = {
+          Constants.SUCCESSKEY: false,
+          Constants.MESSAGEKEY: Constants.errorInternalText,
+        };
+        completer.complete(completerMsg);
+      }
     }
+    return completer.future;
   }
 
-  void listenToScoreUpdates() {
+  Future<void> listenToScoreUpdates() async {
     SocketService().socket.off('score-update');
 
     SocketService().socket.on('score-update', (response) {
@@ -83,23 +129,30 @@ class GameScoreboardService extends ChangeNotifier {
 
       if (scoreBoard == null) return;
 
-      gameBoard = scoreBoard.map((playerDetail) {
-        return PlayerDetail(
-          id: playerDetail['id'],
-          name: playerDetail['name'],
-          score: playerDetail['score'],
-        );
-      }).toList();
+      gameBoard = {
+        for (var playerDetail in scoreBoard)
+          playerDetail['id']: PlayerDetail(
+            id: playerDetail['id'],
+            name: playerDetail['name'],
+            score: playerDetail['score'],
+            previousScore: gameBoard[playerDetail['id']] == null
+                ? 0
+                : gameBoard[playerDetail['id']]!.score,
+          ),
+      };
 
       notifyListeners();
     });
   }
 
-  Future<void> endGame() async {
+  Future<Map<String, dynamic>> endGame() async {
     String? sessionId = navigatorKey.currentContext!
         .read<SessionProvider>()
         .sessionId;
     String hostId = await HostIdService.getHostId();
+
+    Completer<Map<String, dynamic>> completer = Completer();
+    Map<String, dynamic> completerMsg;
 
     if (sessionId != null) {
       try {
@@ -107,16 +160,44 @@ class GameScoreboardService extends ChangeNotifier {
           'end-session',
           {'sessionId': sessionId, 'hostId': hostId},
           ack: (response) {
-            navigatorKey.currentContext!.read<SessionProvider>().setNull();
-            gameBoard.clear();
-            notifyListeners();
+            bool successStatus = response[Constants.SUCCESSKEY];
+
+            if (successStatus) {
+              navigatorKey.currentContext!.read<SessionProvider>().setNull();
+              gameBoard.clear();
+              notifyListeners();
+
+              completerMsg = {Constants.SUCCESSKEY: successStatus};
+              completer.complete(completerMsg);
+            } else {
+              completerMsg = {
+                Constants.SUCCESSKEY: successStatus,
+                Constants.MESSAGEKEY:
+                    response[Constants.errorKey][Constants.codeKey],
+              };
+              completer.complete(completerMsg);
+            }
           },
         );
       } catch (err) {
         if (kDebugMode) {
           print(err);
         }
+
+        completerMsg = {
+          Constants.SUCCESSKEY: false,
+          Constants.MESSAGEKEY: Constants.errorInternalText,
+        };
+        completer.complete(completerMsg);
       }
+    } else {
+      completerMsg = {
+        Constants.SUCCESSKEY: false,
+        Constants.MESSAGEKEY: Constants.internalErrorSessionNull,
+      };
+      completer.complete(completerMsg);
     }
+
+    return completer.future;
   }
 }
