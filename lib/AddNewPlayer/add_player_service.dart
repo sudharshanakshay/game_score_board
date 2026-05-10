@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/hostid_service.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
@@ -10,6 +11,22 @@ import 'package:provider/provider.dart';
 
 class AddPlayerService extends ChangeNotifier {
   List<String> playerNames = [];
+
+  late VoidCallback _reconnectHandler;
+
+  void init() {
+    _reconnectHandler = () {
+      Map<String, PlayerDetail> gameBoard = navigatorKey.currentContext!
+          .read<GameScoreboardService>()
+          .gameBoard;
+
+      playerNames = gameBoard.entries.map((entry) => entry.value.name).toList();
+    };
+
+    _reconnectHandler();
+
+    SocketService().addReconnectListerners(_reconnectHandler);
+  }
 
   bool addPlayer(String name) {
     String cleaned = capitalize(name);
@@ -23,7 +40,7 @@ class AddPlayerService extends ChangeNotifier {
     }
   }
 
-  void removePlayer(String name) {
+  void removePlayerNames(String name) {
     playerNames.remove(name);
     notifyListeners();
   }
@@ -52,17 +69,13 @@ class AddPlayerService extends ChangeNotifier {
           if (successStatus) {
             String sessionId =
                 response[Constants.DATAKEY][Constants.SESSIONIDKEY];
-            navigatorKey.currentContext!.read<SessionProvider>().setSession(
-              sessionId,
-            );
+            navigatorKey.currentContext!
+                .read<SessionProvider>()
+                .setSessionCreatedByHost(sessionId);
             notifyListeners();
 
             completerMsg = {Constants.SUCCESSKEY: successStatus};
           } else {
-            if (kDebugMode) {
-              print(response[Constants.errorKey]);
-            }
-
             completerMsg = {
               Constants.SUCCESSKEY: successStatus,
               Constants.MESSAGEKEY:
@@ -86,5 +99,13 @@ class AddPlayerService extends ChangeNotifier {
     }
 
     return completer.future;
+  }
+
+  Future<dynamic> addOrRemovePlayer({bool editMode = false}) async {
+    if (editMode) {
+      return navigatorKey.currentContext!
+          .read<GameScoreboardService>()
+          .addOrRemovePlayers(playerNames);
+    }
   }
 }

@@ -145,6 +145,124 @@ class GameScoreboardService extends ChangeNotifier {
     });
   }
 
+  Future<Map<String, dynamic>> addOrRemovePlayers(
+    List<String> playerNames,
+  ) async {
+    String? sessionId = navigatorKey.currentContext!
+        .read<SessionProvider>()
+        .sessionId;
+    String hostId = await HostIdService.getHostId();
+
+    Completer<Map<String, dynamic>> completer = Completer();
+    Map<String, dynamic> completerMsg;
+
+    final List<String> removedPlayerIds = gameBoard.entries
+        .where((entry) => playerNames.contains(entry.value.name))
+        .map((entry) => entry.key)
+        .toList();
+
+    final List<String> existingNames = gameBoard.entries
+        .map((player) => player.value.name)
+        .toList();
+
+    final List<String> newPlayers = playerNames
+        .where((playerNames) => !existingNames.contains(playerNames))
+        .toList();
+
+    try {
+      SocketService().socket.emitWithAck(
+        'edit-players',
+        ({
+          "sessionId": sessionId,
+          "hostId": hostId,
+          "playerIdsToRemove": removedPlayerIds,
+          "playerIdsToAdd": newPlayers,
+        }),
+        ack: (response) {
+          bool successStatus = response[Constants.SUCCESSKEY];
+          if (successStatus) {
+            completerMsg = {Constants.SUCCESSKEY: successStatus};
+
+            completer.complete(completerMsg);
+          } else {
+            completerMsg = {
+              Constants.SUCCESSKEY: successStatus,
+              Constants.MESSAGEKEY:
+                  response[Constants.errorKey][Constants.codeKey],
+            };
+
+            completer.complete(completerMsg);
+          }
+        },
+      );
+    } catch (err) {
+      if (kDebugMode) {
+        print(err);
+      }
+
+      completerMsg = {
+        Constants.SUCCESSKEY: false,
+        Constants.MESSAGEKEY: Constants.errorInternalText,
+      };
+
+      completer.complete(completerMsg);
+    }
+
+    return completer.future;
+  }
+
+  Future<Map<String, dynamic>> resetGame() async {
+    bool isJoinedAsHost = navigatorKey.currentContext!
+        .read<SessionProvider>()
+        .isJoinAsHost;
+
+    Completer<Map<String, dynamic>> completer = Completer();
+    Map<String, dynamic> completerMsg;
+
+    if (isJoinedAsHost) {
+      String hostId = await HostIdService.getHostId();
+      String? sessionId = navigatorKey.currentContext!
+          .read<SessionProvider>()
+          .sessionId;
+
+      if (sessionId != null) {
+        SocketService().socket.emitWithAck(
+          'reset-session',
+          {'hostId': hostId, 'sessionId': sessionId},
+          ack: (response) {
+            bool successStatus = response[Constants.SUCCESSKEY];
+
+            if (successStatus) {
+              completerMsg = {Constants.SUCCESSKEY: successStatus};
+              completer.complete(completerMsg);
+            } else {
+              completerMsg = {
+                Constants.SUCCESSKEY: successStatus,
+                Constants.MESSAGEKEY:
+                    response[Constants.errorKey][Constants.codeKey],
+              };
+              completer.complete(completerMsg);
+            }
+          },
+        );
+      } else {
+        completerMsg = {
+          Constants.SUCCESSKEY: false,
+          Constants.MESSAGEKEY: Constants.internalErrorSessionNull,
+        };
+        completer.complete(completerMsg);
+      }
+    } else {
+      completerMsg = {
+        Constants.SUCCESSKEY: false,
+        Constants.MESSAGEKEY: Constants.internalErrorNotHost,
+      };
+      completer.complete(completerMsg);
+    }
+
+    return completer.future;
+  }
+
   Future<Map<String, dynamic>> endGame() async {
     String? sessionId = navigatorKey.currentContext!
         .read<SessionProvider>()

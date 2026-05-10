@@ -6,7 +6,9 @@ import 'package:game_score_board/Helpers/constants.dart';
 import 'package:provider/provider.dart';
 
 class AddPlayerScreen extends StatefulWidget {
-  const AddPlayerScreen({super.key});
+  const AddPlayerScreen({super.key, this.editPlayerMode = false});
+
+  final bool editPlayerMode;
 
   @override
   State<StatefulWidget> createState() => _AddPlayerScreen();
@@ -17,7 +19,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
   TextEditingController nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool isStartingGame = false;
+  bool isLoadingGame = false;
 
   late AnimationController _loadingController;
 
@@ -57,58 +59,107 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
     super.dispose();
   }
 
-  Future<void> _startGame(AddPlayerService provider) async {
-    if (isStartingGame) return;
+  @override
+  void didChangeDependencies() {
+    context.read<AddPlayerService>().init();
+    super.didChangeDependencies();
+  }
 
-    setState(() => isStartingGame = true);
+  Future<void> _callAction(AddPlayerService provider) async =>
+      widget.editPlayerMode ? _editPlayer(provider) : _startGame(provider);
+
+  Future<void> _editPlayer(AddPlayerService provider) async {
+    if (isLoadingGame) return;
+    setState(() => isLoadingGame = true);
     _rotateLoadingMessages();
 
-    try {
-      Map<String, dynamic> successMessage = await provider.startGame();
+    Map<String, dynamic> successMessage = await provider.addOrRemovePlayer(
+      editMode: widget.editPlayerMode,
+    );
 
-      if (successMessage[Constants.SUCCESSKEY]) {
-        if (!mounted) return;
-        Navigator.pop(context);
-      } else {
-        setState(() {
-          isStartingGame = false;
-        });
-
-        final String errorMessage = successMessage[Constants.MESSAGEKEY];
-
-        if (!mounted) return;
-        final messenger = ScaffoldMessenger.of(context);
-
-        messenger.showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            content: Text(errorMessage),
-            action: SnackBarAction(
-              label: "Retry",
-              textColor: Colors.white,
-              onPressed: () => _startGame(provider),
-            ),
-          ),
-        );
-
-        Future.delayed(const Duration(seconds: 2), () {
-          messenger.hideCurrentSnackBar();
-        });
-      }
-    } catch (e) {
+    if (successMessage[Constants.SUCCESSKEY]) {
       if (!mounted) return;
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        isLoadingGame = false;
+      });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to start game")));
+      final String errorMessage = successMessage[Constants.MESSAGEKEY];
 
-      setState(() => isStartingGame = false);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          content: Text(errorMessage),
+          action: SnackBarAction(
+            label: "Retry",
+            textColor: Colors.white,
+            onPressed: () => _editPlayer(provider),
+          ),
+        ),
+      );
+
+      Future.delayed(const Duration(seconds: 2), () {
+        messenger.hideCurrentSnackBar();
+      });
     }
   }
 
+  Future<void> _startGame(AddPlayerService provider) async {
+    if (isLoadingGame) return;
+
+    setState(() => isLoadingGame = true);
+    _rotateLoadingMessages();
+
+    Map<String, dynamic> successMessage = await provider.startGame();
+
+    if (successMessage[Constants.SUCCESSKEY]) {
+      if (!mounted) return;
+      Navigator.pop(context);
+    } else {
+      setState(() {
+        isLoadingGame = false;
+      });
+
+      final String errorMessage = successMessage[Constants.MESSAGEKEY];
+
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          content: Text(errorMessage),
+          action: SnackBarAction(
+            label: "Retry",
+            textColor: Colors.white,
+            onPressed: () => _startGame(provider),
+          ),
+        ),
+      );
+
+      Future.delayed(const Duration(seconds: 2), () {
+        messenger.hideCurrentSnackBar();
+      });
+    }
+    // } catch (e) {
+    //   if (!mounted) return;
+
+    //   ScaffoldMessenger.of(
+    //     context,
+    //   ).showSnackBar(const SnackBar(content: Text("Failed to start game")));
+
+    //   setState(() => isStartingGame = false);
+    // }
+  }
+
   void _rotateLoadingMessages() async {
-    while (mounted && isStartingGame) {
+    while (mounted && isLoadingGame) {
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
 
@@ -133,7 +184,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
           // ),
           body: Consumer<AddPlayerService>(
             builder: (context, provider, child) {
-              final isDisabled = provider.playerNames.isEmpty || isStartingGame;
+              final isDisabled = provider.playerNames.isEmpty || isLoadingGame;
 
               return Stack(
                 children: [
@@ -164,7 +215,9 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "🎲 Players",
+                                widget.editPlayerMode
+                                    ? "🎲 Edit Players"
+                                    : "🎲 Players",
                                 style: AppTextStyles.titleTextStyle,
                               ),
 
@@ -251,8 +304,8 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                           top: -6,
                                           right: -6,
                                           child: GestureDetector(
-                                            onTap: () =>
-                                                provider.removePlayer(name),
+                                            onTap: () => provider
+                                                .removePlayerNames(name),
                                             child: Container(
                                               padding: const EdgeInsets.all(5),
                                               decoration: BoxDecoration(
@@ -284,7 +337,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                 key: _formKey,
                                 child: TextFormField(
                                   controller: nameController,
-                                  enabled: !isStartingGame,
+                                  enabled: !isLoadingGame,
                                   decoration: InputDecoration(
                                     labelText: "Enter player name",
                                     filled: true,
@@ -311,7 +364,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                 ),
-                                onPressed: isStartingGame
+                                onPressed: isLoadingGame
                                     ? null
                                     : () {
                                         if (_formKey.currentState!.validate()) {
@@ -369,8 +422,8 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                         ),
                         onPressed: isDisabled
                             ? null
-                            : () => _startGame(provider),
-                        child: isStartingGame
+                            : () => _callAction(provider),
+                        child: isLoadingGame
                             ? const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -386,8 +439,10 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
                                   Text("Starting..."),
                                 ],
                               )
-                            : const Text(
-                                "🎯 Start Game",
+                            : Text(
+                                widget.editPlayerMode
+                                    ? "🎯 Resume Game"
+                                    : "🎯 Start Game",
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
@@ -403,7 +458,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
         ),
 
         /// LOADING OVERLAY (unchanged)
-        if (isStartingGame)
+        if (isLoadingGame)
           Container(
             color: Colors.black.withOpacity(0.45),
             child: Center(
