@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:game_score_board/AddNewPlayer/add_player_service.dart';
 import 'package:game_score_board/Constants/app_avatar.dart';
@@ -55,6 +57,7 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
   @override
   void dispose() {
     _loadingController.dispose();
+    _loadingTimer?.cancel();
     nameController.dispose();
     super.dispose();
   }
@@ -95,11 +98,11 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
           content: Text(errorMessage),
-          action: SnackBarAction(
-            label: "Retry",
-            textColor: Colors.white,
-            onPressed: () => _editPlayer(provider),
-          ),
+          // action: SnackBarAction(
+          //   label: "Retry",
+          //   textColor: Colors.white,
+          //   onPressed: () => _editPlayer(provider),
+          // ),
         ),
       );
 
@@ -158,16 +161,22 @@ class _AddPlayerScreen extends State<AddPlayerScreen>
     // }
   }
 
-  void _rotateLoadingMessages() async {
-    while (mounted && isLoadingGame) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return;
+  Timer? _loadingTimer;
+
+  void _rotateLoadingMessages() {
+    _loadingTimer?.cancel();
+
+    _loadingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || !isLoadingGame) {
+        timer.cancel();
+        return;
+      }
 
       setState(() {
         currentLoadingIndex =
             (currentLoadingIndex + 1) % loadingMessages.length;
       });
-    }
+    });
   }
 
   @override

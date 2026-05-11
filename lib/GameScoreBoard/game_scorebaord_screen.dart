@@ -32,7 +32,32 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
   final Map<String, Map<String, dynamic>> updatedPlayerColors = {};
   final Map<String, Timer> _resetTimers = {};
 
-  // int colorIndex = 0;
+  final List<String> emojis = ["🎲", "🎨"];
+  int currentEmojiIndex = 0;
+  Timer? _emojiTimer;
+
+  void magicOfColors() {
+    if (updatedPlayerColors.isEmpty) return;
+
+    final colorIndexList = updatedPlayerColors.entries
+        .map((player) => player.value[Constants.internalColorIndexKey] as int)
+        .toList();
+
+    final avG =
+        (colorIndexList.reduce((a, b) => a + b) / colorIndexList.length);
+
+    var roundInex = avG.round();
+
+    if (avG == roundInex) {
+      roundInex = (roundInex + 1) % AppColors.lightColors.length;
+    }
+
+    setState(() {
+      updatedPlayerColors.updateAll((key, value) {
+        return {...value, Constants.internalColorIndexKey: roundInex};
+      });
+    });
+  }
 
   void markPlayerUpdated(String playerId) {
     setState(() {
@@ -70,14 +95,22 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
     super.initState();
     startTime = DateTime.now();
 
-    Future.microtask(() {
-      if (!mounted) return;
-      context.read<GameScoreboardService>().init();
-    });
+    // Future.microtask(() {
+    //   if (!mounted) return;
+    //   context.read<GameScoreboardService>().init();
+    // });
 
     timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
         seconds = DateTime.now().difference(startTime).inSeconds;
+      });
+    });
+
+    _emojiTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!mounted) return;
+
+      setState(() {
+        currentEmojiIndex = (currentEmojiIndex + 1) % emojis.length;
       });
     });
   }
@@ -85,10 +118,17 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
   @override
   void dispose() {
     timer?.cancel();
+    _emojiTimer?.cancel();
     for (final t in _resetTimers.values) {
       t.cancel();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    context.read<GameScoreboardService>().init();
+    super.didChangeDependencies();
   }
 
   String formatTime(int totalSeconds) {
@@ -126,12 +166,17 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            "🎲 Scoreboard",
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF001219),
+                          TextButton(
+                            onPressed: () {
+                              magicOfColors();
+                            },
+                            child: Text(
+                              "${emojis[currentEmojiIndex]} Scoreboard",
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF001219),
+                              ),
                             ),
                           ),
 
@@ -189,7 +234,10 @@ class _GameScorebaordScreen extends State<GameScorebaordScreen> {
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => AddPlayerScreen(editPlayerMode: true,)),
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          AddPlayerScreen(editPlayerMode: true),
+                                    ),
                                   );
                                 },
                                 child: Text(

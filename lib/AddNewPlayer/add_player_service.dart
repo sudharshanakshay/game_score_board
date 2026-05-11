@@ -16,6 +16,7 @@ class AddPlayerService extends ChangeNotifier {
 
   void init() {
     _reconnectHandler = () {
+      if (playerNames.isNotEmpty) return;
       Map<String, PlayerDetail> gameBoard = navigatorKey.currentContext!
           .read<GameScoreboardService>()
           .gameBoard;
@@ -79,8 +80,10 @@ class AddPlayerService extends ChangeNotifier {
             completerMsg = {
               Constants.SUCCESSKEY: successStatus,
               Constants.MESSAGEKEY:
-                  response[Constants.errorKey][Constants.MESSAGEKEY],
+                  response[Constants.errorKey][Constants.codeKey],
             };
+
+            completer.complete(completerMsg);
           }
 
           completer.complete(completerMsg);

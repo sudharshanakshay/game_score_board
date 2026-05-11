@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:game_score_board/Helpers/constants.dart';
 import 'package:game_score_board/Helpers/session_provider.dart';
 import 'package:game_score_board/Helpers/socket_service.dart';
 import 'package:game_score_board/main.dart';
@@ -15,15 +14,10 @@ class ScanToConnectService extends ChangeNotifier {
       'validate-session',
       {'sessionId': scannedSessionId},
       ack: (response) {
-        bool successStatus = response[Constants.SUCCESSKEY];
-
-        if (successStatus) {
+        if (response != null && response['valid']) {
           navigatorKey.currentContext!.read<SessionProvider>().setSession(
             scannedSessionId,
           );
-        }
-
-        if (response != null && response['valid']) {
         } else {
           navigatorKey.currentContext!.read<SessionProvider>().setNull();
         }

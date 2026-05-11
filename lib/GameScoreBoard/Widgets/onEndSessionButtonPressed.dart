@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:game_score_board/GameScoreBoard/game_scoreboard_service.dart';
 import 'package:game_score_board/Helpers/constants.dart';
+import 'package:game_score_board/Helpers/session_provider.dart';
+import 'package:game_score_board/main.dart';
+import 'package:provider/provider.dart';
 
 Future<bool?> onEndSessionPressed(
   BuildContext context,
@@ -105,16 +108,14 @@ Future<bool?> onEndSessionPressed(
                                 setState(() {
                                   isLoading = false;
                                   loadingAction = "reset";
-                                });         
-
+                                });
 
                                 if (res[Constants.SUCCESSKEY] != true) {
-                                  
                                   final String errorMessage =
                                       res[Constants.MESSAGEKEY];
 
                                   if (!dialogContext.mounted) return;
-                                  
+
                                   final messenger = ScaffoldMessenger.of(
                                     context,
                                   );
@@ -155,14 +156,26 @@ Future<bool?> onEndSessionPressed(
                                   loadingAction = "end";
                                 });
 
-                                final res = await gameScoreboardService
-                                    .endGame();
+                                if (navigatorKey.currentContext!
+                                    .read<SessionProvider>()
+                                    .isGameHost) {
+                                  final res = await gameScoreboardService
+                                      .endGame();
 
-                                if (dialogContext.mounted) {
-                                  Navigator.pop(
-                                    dialogContext,
-                                    res[Constants.SUCCESSKEY] == true,
-                                  );
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(
+                                      dialogContext,
+                                      res[Constants.SUCCESSKEY] == true,
+                                    );
+                                  }
+                                } else {
+                                  Navigator.pop(dialogContext, true);
+                                  setState(() {
+                                    isLoading = false;
+                                  });
+                                  navigatorKey.currentContext!
+                                      .read<SessionProvider>()
+                                      .setNull();
                                 }
                               },
                             ),

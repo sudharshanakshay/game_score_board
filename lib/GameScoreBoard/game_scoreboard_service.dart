@@ -185,10 +185,22 @@ class GameScoreboardService extends ChangeNotifier {
 
             completer.complete(completerMsg);
           } else {
+            String errMsg = response[Constants.errorKey][Constants.codeKey];
+
+            if (response[Constants.errorKey][Constants.codeKey] ==
+                Constants.codeValueUnauthorised) {
+              errMsg = "Only the host may edit players.";
+            }
+
+            if (response[Constants.errorKey][Constants.codeKey] ==
+                Constants.codeValueSessionNotFound) {
+              errMsg =
+                  "Game Ended, It may have expired or been ended by the host.";
+            }
+
             completerMsg = {
               Constants.SUCCESSKEY: successStatus,
-              Constants.MESSAGEKEY:
-                  response[Constants.errorKey][Constants.codeKey],
+              Constants.MESSAGEKEY: errMsg,
             };
 
             completer.complete(completerMsg);
@@ -214,7 +226,7 @@ class GameScoreboardService extends ChangeNotifier {
   Future<Map<String, dynamic>> resetGame() async {
     bool isJoinedAsHost = navigatorKey.currentContext!
         .read<SessionProvider>()
-        .isJoinAsHost;
+        .isGameHost;
 
     Completer<Map<String, dynamic>> completer = Completer();
     Map<String, dynamic> completerMsg;
@@ -236,10 +248,22 @@ class GameScoreboardService extends ChangeNotifier {
               completerMsg = {Constants.SUCCESSKEY: successStatus};
               completer.complete(completerMsg);
             } else {
+              String errMsg = response[Constants.errorKey][Constants.codeKey];
+
+              if (response[Constants.errorKey][Constants.codeKey] ==
+                  Constants.codeValueUnauthorised) {
+                errMsg = "Only the host may Reset Game.";
+              }
+
+              if (response[Constants.errorKey][Constants.codeKey] ==
+                  Constants.codeValueSessionNotFound) {
+                errMsg =
+                    "Game Ended, It may have expired or been ended by the host.";
+              }
+
               completerMsg = {
                 Constants.SUCCESSKEY: successStatus,
-                Constants.MESSAGEKEY:
-                    response[Constants.errorKey][Constants.codeKey],
+                Constants.MESSAGEKEY: errMsg,
               };
               completer.complete(completerMsg);
             }
@@ -253,9 +277,11 @@ class GameScoreboardService extends ChangeNotifier {
         completer.complete(completerMsg);
       }
     } else {
+      String errMsg = "Only Host may Reset Game.";
+
       completerMsg = {
         Constants.SUCCESSKEY: false,
-        Constants.MESSAGEKEY: Constants.internalErrorNotHost,
+        Constants.MESSAGEKEY: errMsg,
       };
       completer.complete(completerMsg);
     }
